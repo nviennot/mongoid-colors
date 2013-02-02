@@ -2,42 +2,46 @@
 
 require 'mongoid'
 require 'coderay'
+require 'colorize'
 
 module MongoidColors::Colorizer
   def self.setup
     return unless Mongoid.logger
 
     old_formatter = Mongoid.logger.formatter
-    Mongoid.logger.formatter = proc do |severity, datetime, progname, msg|
+    Mongoid.logger.formatter = lambda do |severity, datetime, progname, msg|
       m = parse(msg)
+      return if m == :ignore
+
       if m.nil?
-        unless msg =~ /which could negatively impact client-side performance/
-          old_formatter.call(severity, datetime, progname, msg)
-        end
-      else
-        m[:query].gsub!(/BSON::ObjectId\('([^']+)'\)/, '0x\1')
-        m[:duration] = m[:duration].split('.')[0] if m[:duration]
-
-        line = "\033[1;32m☘ \033[1;37mMongoDB\033[0m "
-        line << "(#{m[:duration]}ms) " if m[:duration]
-
-        if m[:database]
-          if m[:collection]
-            line << colorize("[#{m[:database]}::#{m[:collection]}] ")
-          else
-            line << colorize("[#{m[:database]}] ")
-          end
-        end
-
-        line << "#{colorize(m[:operation])} " if m[:operation]
-        line << colorize(m[:query])
-        line << "\n"
+        old_formatter.call(severity, datetime, progname, msg)
+        return
       end
-    end
-  end
 
-  def self.colorize(msg)
-    CodeRay.scan(msg, :ruby).term
+      m[:query].gsub!(/BSON::ObjectId\('([^']+)'\)/, '0x\1')
+      m[:duration] = m[:duration].split('.')[0] if m[:duration]
+
+      line = "☘ ".green + "MongoDB ".white
+      line << "(#{m[:duration]}ms) " if m[:duration]
+
+      if m[:database]
+        if m[:collection]
+          line << "[#{m[:database]}::#{m[:collection]}] "
+        else
+          line << "[#{m[:database]}] "
+        end
+      end
+
+      line << case m[:operation]
+      when 'QUERY'  then 'QUERY '.colorize(:green)
+      when 'INSERT' then 'INSERT '.red
+      when 'UPDATE' then 'UPDATE '.red
+      else "#{m[:operation]} "
+      end
+
+      line << CodeRay.scan(m[:query], :ruby).term
+      line << "\n"
+    end
   end
 
   def self.parse(msg)
@@ -46,10 +50,11 @@ module MongoidColors::Colorizer
       {:duration => $1, :database => $2, :collection => $3, :query => $4}
     when /^MONGODB (.*)\['(.*)'\]\.(.*)$/
       {:database => $1, :collection => $2, :query => $3}
-    when /^ *MOPED: (\S+:\S+) (\S+) +database=(\S+) collection=(\S+) (.*) \((.*)ms\)/
-      {:host => $1, :operation => $2, :database => $3, :collection => $4, :query => $5, :duration => $6}
-    when /^ *MOPED: (\S+:\S+) (\S+) +database=(\S+) (.*) \((.*)ms\)/
-      {:host => $1, :operation => $2, :database => $3, :query => $4, :duration => $5}
+    when /^ *MOPED: (\S+:\S+) (\S+) +database=(\S+)( collection=(\S+))? (.*[^)])( \((.*)ms\))?$/
+      {:host => $1, :operation => $2, :database => $3, :collection => $5, :query => $6, :duration => $8}
+    when /which could negatively impact client-side performance/
+    when /COMMAND.*getlasterror/
+      :ignore
     end
   end
 

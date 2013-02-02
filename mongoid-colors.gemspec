@@ -16,6 +16,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'mongoid'
   s.add_dependency 'coderay'
+  s.add_dependency 'colorize'
 
   s.files        = Dir["lib/**/*"] + ['README.md']
   s.require_path = 'lib'
