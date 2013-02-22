@@ -33,8 +33,8 @@ module MongoidColors::Colorizer
       end
 
       line << case m[:operation]
-      when /(QUERY|COUNT)/   then "#{m[:operation]} ".colorize(:green)
-      when /(INSERT|UPDATE|MODIFY)/ then "#{m[:operation]} ".red
+      when /(QUERY|COUNT)/ then "#{m[:operation]} ".colorize(:green)
+      when /(INSERT|UPDATE|MODIFY|DELETE)/ then "#{m[:operation]} ".red
       else "#{m[:operation]} "
       end
 
