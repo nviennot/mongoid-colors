@@ -33,9 +33,8 @@ module MongoidColors::Colorizer
       end
 
       line << case m[:operation]
-      when 'QUERY'  then 'QUERY '.colorize(:green)
-      when 'INSERT' then 'INSERT '.red
-      when 'UPDATE' then 'UPDATE '.red
+      when /(QUERY|COUNT)/   then "#{m[:operation]} ".colorize(:green)
+      when /(INSERT|UPDATE|MODIFY)/ then "#{m[:operation]} ".red
       else "#{m[:operation]} "
       end
 
@@ -51,7 +50,21 @@ module MongoidColors::Colorizer
     when /^MONGODB (.*)\['(.*)'\]\.(.*)$/
       {:database => $1, :collection => $2, :query => $3}
     when /^ *MOPED: (\S+:\S+) (\S+) +database=(\S+)( collection=(\S+))? (.*[^)])( \((.*)ms\))?$/
-      {:host => $1, :operation => $2, :database => $3, :collection => $5, :query => $6, :duration => $8}
+      res = {:host => $1, :operation => $2, :database => $3, :collection => $5, :query => $6, :duration => $8}
+      if res[:operation] == 'COMMAND'
+        command = eval(res[:query])
+        if command[:count]
+          res[:operation]  = 'COUNT'
+          res[:collection] = command.delete(:count)
+          res[:query]      = command.inspect
+        end
+        if command[:findAndModify]
+          res[:operation]  = 'FIND AND MODIFY'
+          res[:collection] = command.delete(:findAndModify)
+          res[:query]      = command.inspect
+        end
+      end
+      res
     when /which could negatively impact client-side performance/
     when /COMMAND.*getlasterror/
       :ignore
