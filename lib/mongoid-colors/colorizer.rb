@@ -52,16 +52,19 @@ module MongoidColors::Colorizer
     when /^ *MOPED: (\S+:\S+) (\S+) +database=(\S+)( collection=(\S+))? (.*[^)])( \((.*)ms\))?$/
       res = {:host => $1, :operation => $2, :database => $3, :collection => $5, :query => $6, :duration => $8}
       if res[:operation] == 'COMMAND'
-        command = eval(res[:query])
-        if command[:count]
-          res[:operation]  = 'COUNT'
-          res[:collection] = command.delete(:count)
-          res[:query]      = command.inspect
-        end
-        if command[:findAndModify]
-          res[:operation]  = 'FIND AND MODIFY'
-          res[:collection] = command.delete(:findAndModify)
-          res[:query]      = command.inspect
+        begin
+          command = eval(res[:query])
+          if command[:count]
+            res[:operation]  = 'COUNT'
+            res[:collection] = command.delete(:count)
+            res[:query]      = command.inspect
+          end
+          if command[:findAndModify]
+            res[:operation]  = 'FIND AND MODIFY'
+            res[:collection] = command.delete(:findAndModify)
+            res[:query]      = command.inspect
+          end
+        rescue Exception
         end
       end
       res
