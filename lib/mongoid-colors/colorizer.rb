@@ -12,11 +12,7 @@ module MongoidColors::Colorizer
     Mongoid.logger.formatter = lambda do |severity, datetime, progname, msg|
       m = parse(msg)
       return if m == :ignore
-
-      if m.nil?
-        old_formatter.call(severity, datetime, progname, msg)
-        return
-      end
+      return old_formatter.call(severity, datetime, progname, msg) if m.nil?
 
       m[:query].gsub!(/BSON::ObjectId\('([^']+)'\)/, '0x\1')
       m[:duration] = m[:duration].split('.')[0] if m[:duration]
@@ -69,6 +65,7 @@ module MongoidColors::Colorizer
       end
       res
     when /which could negatively impact client-side performance/
+      :ignore
     when /COMMAND.*getlasterror/
       :ignore
     end
